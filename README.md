@@ -50,7 +50,8 @@ Exemplo (4–20 mA, faixa 0–100 bar, 30.000 contagens): 12 mA → p = 0,5 → 
 
 ### Web (HTML)
 
-- Baixe o [`calculadora-sinal-analogico.html`](calculadora-sinal-analogico.html) e abra em qualquer navegador (Chrome, Edge, Firefox, Safari).
+- **Usar online:** https://lapumia1.github.io/CalcAnalog/
+- Ou baixe o [`calculadora-sinal-analogico.html`](calculadora-sinal-analogico.html) e abra em qualquer navegador (Chrome, Edge, Firefox, Safari).
 - Não precisa de instalação nem servidor; todo o cálculo roda localmente no navegador. A internet só é usada para carregar as fontes do Google Fonts (sem ela, o app usa as fontes do sistema).
 
 ## Estrutura do repositório
@@ -59,6 +60,7 @@ Exemplo (4–20 mA, faixa 0–100 bar, 30.000 contagens): 12 mA → p = 0,5 → 
 CalcAnalog/
 ├── CalcAnalog.apk                      # Aplicativo Android
 ├── calculadora-sinal-analogico.html    # Versão web (arquivo único: HTML + CSS + JS)
+├── index.html                          # Redireciona o GitHub Pages para a calculadora
 └── README.md
 ```
 
