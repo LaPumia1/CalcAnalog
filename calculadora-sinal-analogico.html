@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de sinal analógico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light dark;
+    --paper: #EEF1F6;
+    --surface: #FFFFFF;
+    --ink: #12183F;
+    --muted: #5A6384;
+    --line: #D5DAE8;
+    --accent: #3F5BFF;
+    --stage: #141B4D;
+    --stage-ink: #EAEEFF;
+    --stage-muted: #8F9AD0;
+    --signal: #7C93FF;
+    --amber: #FFC233;
+    --alert: #FF6B5B;
+    --ok: #2FBF8F;
+    --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+    --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #090C26;
+      --surface: #11163B;
+      --ink: #EAEEFF;
+      --muted: #8F9AD0;
+      --line: #262D63;
+      --accent: #8EA2FF;
+      --stage: #1A2260;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+
+  .app {
+    display: grid;
+    grid-template-columns: minmax(320px, 440px) 1fr;
+    gap: clamp(16px, 3vw, 40px);
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: clamp(16px, 4vw, 48px);
+    align-items: start;
+  }
+  @media (max-width: 860px) { .app { grid-template-columns: 1fr; } }
+
+  /* ---------- Marca ---------- */
+  .brand {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 14px;
+    margin: 0;
+  }
+  .brand svg { width: clamp(40px, 7vw, 56px); height: auto; flex: none; }
+  .brand .mk-track { stroke: var(--line); }
+  .brand .mk-fill { stroke: var(--accent); }
+  .brand .mk-knob { fill: var(--surface); stroke: var(--amber); }
+  .brand h1 {
+    font-family: var(--display); font-weight: 600;
+    font-size: clamp(30px, 6vw, 48px); line-height: 1;
+    letter-spacing: -0.03em; margin: 0;
+  }
+
+  /* ---------- Painel de entrada ---------- */
+  .lead { color: var(--muted); margin: 0 0 24px; max-width: 40ch; }
+
+  .seg {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 4px;
+    gap: 4px;
+    margin-bottom: 28px;
+  }
+  .seg button {
+    border: 0;
+    background: transparent;
+    padding: 12px 6px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--muted);
+    transition: background .2s, color .2s;
+  }
+  .seg button[aria-checked="true"] { background: var(--accent); color: #fff; }
+  @media (prefers-color-scheme: dark) { .seg button[aria-checked="true"] { color: #0A0E33; } }
+
+  /* trilho que liga os três campos */
+  .loop { position: relative; display: grid; gap: 14px; padding-left: 30px; margin-bottom: 28px; }
+  .loop::before {
+    content: ""; position: absolute; left: 7px; top: 22px; bottom: 22px;
+    width: 2px; background: var(--line);
+  }
+  .field { position: relative; }
+  .field::before {
+    content: ""; position: absolute; left: -29px; top: 22px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--paper); border: 2px solid var(--line);
+    transition: background .2s, border-color .2s;
+  }
+  .field.driver::before { background: var(--accent); border-color: var(--accent); }
+
+  .box {
+    display: block;
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    padding: 10px 14px 8px;
+    transition: border-color .2s;
+  }
+  .field.driver .box, .box:focus-within { border-color: var(--accent); }
+  .box > span.lab { display: block; font-size: 13px; color: var(--muted); }
+  .row { display: flex; align-items: baseline; gap: 8px; }
+  .row input {
+    flex: 1; min-width: 0; width: 100%;
+    border: 0; background: transparent; outline: 0;
+    font-family: var(--display); font-weight: 400;
+    font-size: clamp(22px, 5vw, 28px);
+    padding: 2px 0; letter-spacing: -0.01em;
+  }
+  .row .suf { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .row .sign {
+    border: 1px solid var(--line); background: transparent; color: var(--muted);
+    border-radius: 8px; width: 34px; height: 30px; cursor: pointer; align-self: center;
+  }
+  .row .sign:hover { color: var(--ink); border-color: var(--accent); }
+
+  .range h2 { font-size: 15px; margin: 0 0 4px; font-weight: 600; }
+  .range p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+  .range-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .range-grid .box .row input { font-size: 20px; }
+  .range-grid .wide { grid-column: 1 / -1; }
+  .range-grid .box[aria-invalid="true"], .box.bad { border-color: var(--alert); }
+
+  /* ---------- Palco ---------- */
+  .stage {
+    background: var(--stage);
+    color: var(--stage-ink);
+    border-radius: 28px;
+    padding: clamp(16px, 3vw, 32px);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.06);
+  }
+  .dial { width: 100%; height: auto; display: block; max-width: 560px; margin: 0 auto; }
+  .dial text { font-family: var(--body); }
+  .dial .track { stroke: rgba(255,255,255,.12); }
+  .dial .fill {
+    stroke: var(--signal);
+    transition: stroke-dasharray .7s cubic-bezier(.2,.8,.2,1), stroke .3s;
+  }
+  .dial.drag .fill, .dial.drag .knob-g { transition: none; }
+  .dial .knob-g {
+    transform-box: view-box;
+    transform-origin: 230px 225px;
+    transition: transform .7s cubic-bezier(.2,.8,.2,1);
+  }
+  .dial .knob { fill: #fff; stroke: var(--signal); stroke-width: 5; transition: stroke .3s; }
+  .dial.out .fill { stroke: var(--alert); }
+  .dial.out .knob { stroke: var(--alert); }
+  .dial.boot .fill { stroke-dasharray: 0 100 !important; transition: none; }
+  .dial.boot .knob-g { transform: rotate(-135deg) !important; transition: none; }
+  .tick { stroke: rgba(255,255,255,.35); stroke-width: 1.5; }
+  .tick.major { stroke: rgba(255,255,255,.75); stroke-width: 2; }
+  .lbl-cnt { fill: var(--signal); font-size: 13px; font-weight: 600; }
+  .lbl-sig { fill: var(--stage-muted); font-size: 13px; font-weight: 500; }
+  .lbl-eng { fill: var(--stage-ink); font-size: 13px; font-weight: 600; opacity: .85; }
+  .zero-mark { stroke: var(--amber); stroke-width: 4; stroke-linecap: round; }
+  .lbl-zero { fill: var(--amber); font-size: 13px; font-weight: 600; }
+  .read-pct { fill: var(--stage-muted); font-size: 15px; font-weight: 500; }
+  .read-val { fill: var(--stage-ink); font-family: var(--display); font-weight: 600; letter-spacing: -0.02em; }
+  .read-unit { fill: var(--stage-muted); font-size: 17px; font-weight: 500; }
+
+  /* ---------- Barra deslizante ---------- */
+  .slider {
+    display: grid; grid-template-columns: 48px 1fr 48px; align-items: center;
+    gap: 10px; margin: 0;
+  }
+  .slider-ends {
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 0 58px; margin: 0 0 18px;
+    font-size: 13px; color: var(--stage-muted);
+  }
+  .step {
+    width: 48px; height: 48px; border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,.22);
+    background: rgba(255,255,255,.06); color: var(--stage-ink);
+    font-size: 26px; line-height: 1; cursor: pointer;
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    touch-action: manipulation; padding: 0;
+  }
+  .step:active { background: rgba(255,255,255,.18); }
+  #slider {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 52px; margin: 0; background: transparent;
+    cursor: pointer; --p: 50%; touch-action: pan-y;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #slider::-webkit-slider-runnable-track {
+    height: 14px; border-radius: 7px;
+    background: linear-gradient(to right, var(--signal) var(--p), rgba(255,255,255,.14) var(--p));
+  }
+  #slider::-moz-range-track {
+    height: 14px; border-radius: 7px;
+    background: linear-gradient(to right, var(--signal) var(--p), rgba(255,255,255,.14) var(--p));
+  }
+  #slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; box-sizing: border-box;
+    width: 36px; height: 36px; margin-top: -11px; border-radius: 50%;
+    background: #fff; border: 5px solid var(--signal);
+    box-shadow: 0 2px 10px rgba(0,0,0,.4);
+  }
+  #slider::-moz-range-thumb {
+    box-sizing: border-box; width: 36px; height: 36px; border-radius: 50%;
+    background: #fff; border: 5px solid var(--signal);
+    box-shadow: 0 2px 10px rgba(0,0,0,.4);
+  }
+  #slider:focus { outline: none; }
+  #slider:focus-visible::-webkit-slider-thumb { border-color: var(--amber); }
+  #slider:focus-visible::-moz-range-thumb { border-color: var(--amber); }
+  .stage.out #slider::-webkit-slider-thumb { border-color: var(--alert); }
+  .stage.out #slider::-moz-range-thumb { border-color: var(--alert); }
+
+  .legend {
+    display: flex; justify-content: center; gap: 6px 18px; flex-wrap: wrap;
+    margin: 0 0 14px; font-size: 13px; color: var(--stage-muted);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 9px; height: 9px; border-radius: 50%; }
+
+  .status {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    margin: -8px auto 20px; font-weight: 500; text-align: center;
+  }
+  .status i { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); flex: none; }
+  .status.warn i { background: var(--amber); }
+  .status.err i { background: var(--alert); }
+
+  .calc {
+    background: rgba(255,255,255,.06);
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    font-size: 15px;
+  }
+  .calc p { margin: 0; overflow-wrap: anywhere; }
+  .calc p + p { margin-top: 6px; }
+  .calc .k { color: var(--stage-muted); }
+
+  .pts h2 { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+  .pts > p { margin: 0 0 10px; color: var(--stage-muted); font-size: 14px; }
+  .pt-head, .pt {
+    display: grid; grid-template-columns: .6fr 1fr 1fr 1.2fr; gap: 8px;
+    padding: 9px 12px; text-align: right; align-items: baseline;
+  }
+  .pt-head { color: var(--stage-muted); font-size: 13px; padding-top: 0; padding-bottom: 4px; }
+  .pt-head span:first-child, .pt span:first-child { text-align: left; }
+  .pt {
+    width: 100%; border: 0; background: transparent; cursor: pointer;
+    border-radius: 10px; font-size: 15px; font-variant-numeric: tabular-nums;
+    border-top: 1px solid rgba(255,255,255,.08);
+    border-top-left-radius: 0; border-top-right-radius: 0;
+  }
+  .pt:hover { background: rgba(255,255,255,.07); }
+  .pt.on { background: var(--amber); color: #1A1500; border-top-color: transparent; border-radius: 10px; font-weight: 600; }
+  .pt.on + .pt { border-top-color: transparent; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dial .fill, .dial .knob-g { transition: none; }
+  }
+  /* ---------- Abertura ---------- */
+  .splash {
+    position: fixed; inset: 0; z-index: 100;
+    display: grid; place-items: center;
+    background:
+      radial-gradient(60% 50% at 50% 42%, rgba(124,147,255,.24), transparent 70%),
+      var(--stage);
+    color: var(--stage-ink);
+    cursor: pointer; touch-action: manipulation;
+    animation: spOut .6s ease-in 2.1s forwards;
+  }
+  @keyframes spOut { to { opacity: 0; visibility: hidden; transform: scale(1.04); } }
+  html.skip .splash { display: none; }
+
+  .splash-in { display: grid; justify-items: center; gap: 18px; padding: 24px; text-align: center; }
+  .sp-logo { width: clamp(120px, 30vw, 170px); height: auto; overflow: visible; }
+  .sp-track {
+    fill: none; stroke: rgba(255,255,255,.14); stroke-width: 7; stroke-linecap: round;
+    animation: spFade .5s ease-out .1s both;
+  }
+  .sp-fill {
+    fill: none; stroke: var(--signal); stroke-width: 7; stroke-linecap: round;
+    stroke-dasharray: 0 100;
+    animation: spDraw 1.3s cubic-bezier(.25,.9,.3,1) .35s forwards;
+  }
+  .sp-knob {
+    transform-box: view-box; transform-origin: 32px 32px; transform: rotate(-135deg);
+    animation: spSweep 1.3s cubic-bezier(.25,.9,.3,1) .35s forwards;
+  }
+  .sp-knob circle { fill: #fff; stroke: var(--amber); stroke-width: 3.5; }
+  @keyframes spFade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes spDraw { to { stroke-dasharray: 57.4 100; } }
+  @keyframes spSweep { to { transform: rotate(20deg); } }
+
+  .sp-word {
+    font-family: var(--display); font-weight: 600;
+    font-size: clamp(32px, 9vw, 52px); line-height: 1; letter-spacing: -0.03em;
+    display: flex; justify-content: center;
+  }
+  .sp-word span {
+    display: inline-block; opacity: 0; transform: translateY(.6em);
+    animation: spRise .6s cubic-bezier(.2,.8,.2,1) forwards;
+    animation-delay: calc(.95s + var(--i) * .045s);
+  }
+  .sp-tag {
+    margin: 0; color: var(--stage-muted); font-size: 15px; letter-spacing: .02em;
+    opacity: 0; animation: spRise .6s ease-out 1.55s forwards;
+  }
+  @keyframes spRise { to { opacity: 1; transform: none; } }
+
+  /* entrada do conteúdo depois da abertura */
+  .app > * { animation: rise .8s cubic-bezier(.2,.8,.2,1) 2.2s both; }
+  .app > .panel { animation-delay: 2.3s; }
+  .app > .stage { animation-delay: 2.4s; }
+  .app > .credits { animation-delay: 2.5s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(18px); } }
+  html.skip .app > * { animation-delay: 0s !important; animation-duration: .5s; }
+
+  /* ---------- Créditos ---------- */
+  .credits {
+    grid-column: 1 / -1;
+    display: grid; grid-template-columns: 1fr 1.4fr; gap: 24px 36px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 24px; padding: clamp(18px, 3vw, 30px);
+  }
+  @media (max-width: 860px) { .credits { grid-template-columns: 1fr; } }
+  .cr-kicker { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+  .cr-name {
+    margin: 0 0 6px; font-family: var(--display); font-weight: 600;
+    font-size: clamp(18px, 3vw, 22px); line-height: 1.2; letter-spacing: -0.02em;
+  }
+  .cr-mail { color: var(--accent); font-weight: 500; overflow-wrap: anywhere; }
+  .pix-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+  .pix-row code {
+    flex: 1 1 260px; min-width: 0;
+    background: var(--paper); border: 1.5px dashed var(--line); border-radius: 12px;
+    padding: 12px 14px; font-size: 14px; line-height: 1.4;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    overflow-wrap: anywhere; user-select: all; -webkit-user-select: all;
+    display: flex; align-items: center;
+  }
+  .copy {
+    border: 0; border-radius: 12px; padding: 12px 20px; min-height: 48px;
+    background: var(--accent); color: #fff; font-weight: 600; cursor: pointer;
+    touch-action: manipulation; flex: 0 0 auto;
+  }
+  @media (prefers-color-scheme: dark) { .copy { color: #0A0E33; } }
+  .copy:active { filter: brightness(.9); }
+  .cr-note { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .splash { display: none; }
+    .app > * { animation: none !important; }
+  }
+
+</style>
+</head>
+<body>
+<div class="splash" id="splash" aria-hidden="true">
+  <div class="splash-in">
+    <svg class="sp-logo" viewBox="0 0 64 64">
+      <path class="sp-track" d="M 13.61 50.39 A 26 26 0 1 1 50.39 50.39"/>
+      <path class="sp-fill" pathLength="100" d="M 13.61 50.39 A 26 26 0 1 1 50.39 50.39"/>
+      <g class="sp-knob"><circle cx="32" cy="6" r="5"/></g>
+    </svg>
+    <div class="sp-word"><span style="--i:0">C</span><span style="--i:1">a</span><span style="--i:2">l</span><span style="--i:3">c</span><span style="--i:4">A</span><span style="--i:5">n</span><span style="--i:6">a</span><span style="--i:7">l</span><span style="--i:8">o</span><span style="--i:9">g</span></div>
+    <p class="sp-tag">4–20 mA · 0–20 mA · 0–10 V</p>
+  </div>
+</div>
+<main class="app">
+
+  <header class="brand">
+    <svg viewBox="0 0 64 64" aria-hidden="true">
+      <path class="mk-track" d="M 14.1 49.9 A 26 26 0 1 1 49.9 49.9" fill="none" stroke-width="7" stroke-linecap="round"/>
+      <path class="mk-fill" d="M 14.1 49.9 A 26 26 0 0 1 40.5 7.6" fill="none" stroke-width="7" stroke-linecap="round"/>
+      <circle class="mk-knob" cx="40.5" cy="7.6" r="5" stroke-width="3.5"/>
+    </svg>
+    <h1>CalcAnalog</h1>
+  </header>
+
+  <section class="panel" aria-label="Entrada">
+    <p class="lead">Digite em qualquer campo ou deslize a barra abaixo do mostrador. Os outros valores se ajustam, nos dois sentidos.</p>
+
+    <div class="seg" role="radiogroup" aria-label="Tipo de sinal" id="seg">
+      <button type="button" role="radio" data-type="420" aria-checked="true">4–20 mA</button>
+      <button type="button" role="radio" data-type="020" aria-checked="false">0–20 mA</button>
+      <button type="button" role="radio" data-type="010" aria-checked="false">0–10 V</button>
+    </div>
+
+    <div class="loop">
+      <div class="field" id="f-counts">
+        <label class="box">
+          <span class="lab">Contagem de entrada</span>
+          <span class="row"><input id="counts" inputmode="decimal" autocomplete="off" spellcheck="false"><span class="suf">cts</span></span>
+        </label>
+      </div>
+      <div class="field" id="f-sig">
+        <label class="box">
+          <span class="lab">Sinal</span>
+          <span class="row"><input id="sig" inputmode="decimal" autocomplete="off" spellcheck="false"><span class="suf" id="sigUnit">mA</span></span>
+        </label>
+      </div>
+      <div class="field" id="f-eng">
+        <div class="box">
+          <label class="lab" for="eng" style="display:block;font-size:13px;color:var(--muted)">Valor de engenharia</label>
+          <span class="row">
+            <input id="eng" inputmode="text" autocomplete="off" spellcheck="false">
+            <span class="suf" id="engUnit"></span>
+            <button type="button" class="sign" data-for="eng" aria-label="Inverter sinal do valor">±</button>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="range">
+      <h2>Faixa de engenharia</h2>
+      <p>O mínimo corresponde ao início do sinal e o máximo ao fim. Aceita máximo negativo e mínimo positivo.</p>
+      <div class="range-grid">
+        <div class="box" id="b-emin">
+          <label class="lab" for="emin" style="display:block;font-size:13px;color:var(--muted)">Mínimo</label>
+          <span class="row"><input id="emin" inputmode="text" autocomplete="off" spellcheck="false"><button type="button" class="sign" data-for="emin" aria-label="Inverter sinal do mínimo">±</button></span>
+        </div>
+        <div class="box" id="b-emax">
+          <label class="lab" for="emax" style="display:block;font-size:13px;color:var(--muted)">Máximo</label>
+          <span class="row"><input id="emax" inputmode="text" autocomplete="off" spellcheck="false"><button type="button" class="sign" data-for="emax" aria-label="Inverter sinal do máximo">±</button></span>
+        </div>
+        <label class="box" id="b-unit">
+          <span class="lab">Unidade</span>
+          <span class="row"><input id="unit" placeholder="bar, °C, m³/h" autocomplete="off" maxlength="12"></span>
+        </label>
+        <label class="box" id="b-cmax">
+          <span class="lab">Contagem no fim do sinal</span>
+          <span class="row"><input id="cmax" inputmode="decimal" autocomplete="off"></span>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage" aria-label="Resultado">
+    <svg class="dial boot" id="dial" viewBox="-30 -30 520 430" role="group" aria-label="Mostrador do sinal">
+      <g id="ticks"></g>
+      <path class="track" id="track" fill="none" stroke-width="16" stroke-linecap="round"/>
+      <path class="fill" id="fillArc" fill="none" stroke-width="16" stroke-linecap="round" pathLength="100"/>
+      <g id="zero"></g>
+      <g class="knob-g" id="knobG"><circle class="knob" cx="230" cy="75" r="13"/></g>
+      <text class="read-pct" id="rPct" x="230" y="190" text-anchor="middle"></text>
+      <text class="read-val" id="rVal" x="230" y="245" text-anchor="middle"></text>
+      <text class="read-unit" id="rUnit" x="230" y="278" text-anchor="middle"></text>
+    </svg>
+
+    <div class="slider">
+      <button type="button" class="step" id="stepDn" aria-label="Diminuir">−</button>
+      <input type="range" id="slider" min="0" max="30000" step="1" value="15000" aria-label="Contagem de entrada">
+      <button type="button" class="step" id="stepUp" aria-label="Aumentar">+</button>
+    </div>
+    <div class="slider-ends" aria-hidden="true"><span id="endLo"></span><span id="endHi"></span></div>
+
+    <p class="legend" aria-hidden="true">
+      <span><i style="background:var(--signal)"></i>Contagem</span>
+      <span><i style="background:var(--stage-muted)"></i>Sinal</span>
+      <span><i style="background:var(--stage-ink)"></i>Valor</span>
+    </p>
+
+    <div class="status" id="status" aria-live="polite"><i></i><span id="statusTxt"></span></div>
+
+    <div class="calc" aria-live="polite">
+      <p><span class="k">Percentual</span> &nbsp;<span id="eq1"></span></p>
+      <p><span class="k">Valor</span> &nbsp;<span id="eq2"></span></p>
+    </div>
+
+    <div class="pts">
+      <h2>Pontos de teste</h2>
+      <p>Toque em uma linha para carregar o ponto.</p>
+      <div class="pt-head"><span>%</span><span>Contagem</span><span id="hSig">Sinal</span><span>Valor</span></div>
+      <div id="ptRows"></div>
+    </div>
+  </section>
+
+  <footer class="credits">
+    <div class="cr-author">
+      <p class="cr-kicker">Desenvolvido por</p>
+      <p class="cr-name">Lucas Souza dos Santos</p>
+      <a class="cr-mail" href="mailto:lucas.contatopessoal.1504@gmail.com">lucas.contatopessoal.1504@gmail.com</a>
+    </div>
+    <div class="cr-pix">
+      <p class="cr-kicker">Gostou da ferramenta? Apoie com uma doação via Pix</p>
+      <div class="pix-row">
+        <code id="pixKey">3d198a68-38d3-4899-8a86-f03da4111309</code>
+        <button type="button" class="copy" id="copyPix">Copiar chave</button>
+      </div>
+      <p class="cr-note">Chave aleatória</p>
+    </div>
+  </footer>
+
+</main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const TYPES = {
+    '420': { min: 4, max: 20, unit: 'mA' },
+    '020': { min: 0, max: 20, unit: 'mA' },
+    '010': { min: 0, max: 10, unit: 'V'  }
+  };
+  const S = { type: '420', pct: 0.5, driver: 'counts', emin: 0, emax: 100, unit: '', cmax: 30000, engVal: null };
+
+  const CX = 230, CY = 225, R = 150, A0 = -135, SWEEP = 270;
+  const NS = 'http://www.w3.org/2000/svg';
+
+  /* ---------- utilidades ---------- */
+  function num(str) {
+    if (typeof str !== 'string') return NaN;
+    const t = str.trim().replace(/\s/g, '').replace('−', '-').replace(',', '.');
+    if (t === '' || t === '-' || t === '.' || t === '-.') return NaN;
+    return Number(t);
+  }
+  function fmt(n, d = 3) {
+    if (!isFinite(n)) return '—';
+    let v = Math.round(n * 10 ** d) / 10 ** d;
+    if (Object.is(v, -0)) v = 0;
+    return v.toLocaleString('pt-BR', { maximumFractionDigits: d }).replace(/^-/, '−');
+  }
+  function fmtIn(n, d) {
+    let v = +n.toFixed(d);
+    if (v === 0) v = 0;
+    return String(v).replace('.', ',');
+  }
+  const P = x => (x < 0 ? '(' + fmt(x) + ')' : fmt(x));
+  const pol = (r, deg) => {
+    const a = deg * Math.PI / 180;
+    return [CX + r * Math.sin(a), CY - r * Math.cos(a)];
+  };
+  const el = (name, attrs, parent) => {
+    const e = document.createElementNS(NS, name);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+
+  /* ---------- cálculo ---------- */
+  function derive() {
+    const t = TYPES[S.type], p = S.pct;
+    return {
+      p,
+      sig: t.min + p * (t.max - t.min),
+      cnt: p * S.cmax,
+      eng: S.emin + p * (S.emax - S.emin)
+    };
+  }
+  const engAt = p => S.emin + p * (S.emax - S.emin);
+  const sigAt = p => { const t = TYPES[S.type]; return t.min + p * (t.max - t.min); };
+
+  /* ---------- mostrador ---------- */
+  const arcD = (r, a0, a1) => {
+    const [x0, y0] = pol(r, a0), [x1, y1] = pol(r, a1);
+    return `M ${x0} ${y0} A ${r} ${r} 0 ${(a1 - a0) > 180 ? 1 : 0} 1 ${x1} ${y1}`;
+  };
+  $('track').setAttribute('d', arcD(R, A0, A0 + SWEEP));
+  $('fillArc').setAttribute('d', arcD(R, A0, A0 + SWEEP));
+
+  function buildDial() {
+    const g = $('ticks');
+    g.innerHTML = '';
+    const zero = $('zero');
+    zero.innerHTML = '';
+    const straddle = S.emin * S.emax < 0;
+    const pz = straddle ? (0 - S.emin) / (S.emax - S.emin) : null;
+
+    for (let i = 0; i <= 20; i++) {
+      const p = i / 20, a = A0 + SWEEP * p, major = i % 5 === 0;
+      const [x0, y0] = pol(R + 14, a), [x1, y1] = pol(R + (major ? 26 : 20), a);
+      el('line', { class: 'tick' + (major ? ' major' : ''), x1: x0, y1: y0, x2: x1, y2: y1 }, g);
+      if (major) {
+        const sn = Math.sin(a * Math.PI / 180);
+        const anchor = sn > 0.3 ? 'start' : sn < -0.3 ? 'end' : 'middle';
+        const [sx, sy] = pol(R + 40, a);
+        const ts = el('text', { class: 'lbl-sig', x: sx, y: sy + 4, 'text-anchor': anchor }, g);
+        ts.textContent = fmt(sigAt(p), 2);
+        const [cx2, cy2] = pol(R + 76, a);
+        const tc = el('text', { class: 'lbl-cnt', x: cx2, y: cy2 + 4, 'text-anchor': anchor }, g);
+        tc.textContent = fmt(p * S.cmax, 0);
+        if (pz === null || Math.abs(p - pz) > 0.09) {
+          const [ex, ey] = pol(R - 32, a);
+          const te = el('text', { class: 'lbl-eng', x: ex, y: ey + 4, 'text-anchor': 'middle' }, g);
+          te.textContent = fmt(engAt(p), 2);
+        }
+      }
+    }
+    if (pz !== null) {
+      const a = A0 + SWEEP * pz;
+      const [x0, y0] = pol(R - 16, a), [x1, y1] = pol(R + 16, a);
+      el('line', { class: 'zero-mark', x1: x0, y1: y0, x2: x1, y2: y1 }, zero);
+      const [lx, ly] = pol(R - 34, a);
+      const t = el('text', { class: 'lbl-zero', x: lx, y: ly + 4, 'text-anchor': 'middle' }, zero);
+      t.textContent = '0';
+    }
+  }
+
+  function drawDial(d) {
+    const clamped = Math.min(1, Math.max(0, d.p));
+    $('fillArc').style.strokeDasharray = `${clamped * 100} 100`;
+    const kp = Math.min(1.03, Math.max(-0.03, d.p));
+    $('knobG').style.transform = `rotate(${A0 + SWEEP * kp}deg)`;
+
+    const txt = fmt(d.eng);
+    const n = txt.length;
+    const size = n <= 5 ? 46 : n <= 7 ? 36 : n <= 9 ? 28 : 22;
+    $('rVal').setAttribute('font-size', size);
+    $('rVal').textContent = txt;
+    $('rPct').textContent = fmt(d.p * 100, 1) + ' %';
+    $('rUnit').textContent = S.unit;
+
+    const sl = $('slider');
+    sl.max = S.cmax;
+    sl.step = S.cmax >= 1 ? 1 : 'any';
+    sl.value = Math.round(d.cnt);
+    sl.style.setProperty('--p', Math.min(100, Math.max(0, d.p * 100)) + '%');
+    sl.setAttribute('aria-valuetext', `${fmt(d.cnt, 0)} contagens, ${fmt(d.eng)} ${S.unit}`.trim());
+    const t = TYPES[S.type];
+    $('endLo').textContent = `0 · ${fmt(t.min)} ${t.unit}`;
+    $('endHi').textContent = `${fmt(S.cmax, 0)} · ${fmt(t.max)} ${t.unit}`;
+    $('dial').parentElement.classList.toggle('out', d.p < 0 || d.p > 1);
+  }
+
+  /* ---------- tela ---------- */
+  function setIf(id, value) {
+    const e = $(id);
+    if (document.activeElement !== e) e.value = value;
+  }
+
+  function render() {
+    const t = TYPES[S.type], d = derive();
+
+    setIf('counts', fmtIn(d.cnt, 1));
+    setIf('sig', fmtIn(d.sig, 3));
+    setIf('eng', fmtIn(d.eng, 3));
+    setIf('emin', fmtIn(S.emin, 4));
+    setIf('emax', fmtIn(S.emax, 4));
+    setIf('cmax', fmtIn(S.cmax, 0));
+    setIf('unit', S.unit);
+
+    $('sigUnit').textContent = t.unit;
+    $('hSig').textContent = 'Sinal (' + t.unit + ')';
+    $('engUnit').textContent = S.unit;
+
+    ['counts', 'sig', 'eng'].forEach(k => {
+      const f = $(k === 'sig' ? 'f-sig' : 'f-' + k);
+      f.classList.toggle('driver', S.driver === k);
+    });
+
+    drawDial(d);
+
+    // estado
+    let cls = '', msg = 'Dentro da faixa';
+    const degenerate = S.emin === S.emax;
+    if (S.type === '420' && d.sig < 3.6) { cls = 'err'; msg = 'Abaixo de 3,6 mA: possível fio rompido'; }
+    else if (S.type === '420' && d.sig > 21) { cls = 'err'; msg = 'Acima de 21 mA: sinal fora do padrão'; }
+    else if (d.p < 0) { cls = 'warn'; msg = 'Abaixo do início da faixa'; }
+    else if (d.p > 1) { cls = 'warn'; msg = 'Acima do fim da faixa'; }
+    if (degenerate) { cls = 'warn'; msg = 'Mínimo e máximo iguais: a conversão inversa não é possível'; }
+    $('status').className = 'status ' + cls;
+    $('statusTxt').textContent = msg;
+    $('dial').classList.toggle('out', d.p < 0 || d.p > 1);
+
+    // contas
+    $('eq1').textContent = `(${fmt(d.sig)} − ${P(t.min)}) ÷ (${fmt(t.max)} − ${P(t.min)}) = ${fmt(d.p * 100, 2)} %`;
+    $('eq2').textContent = `${P(S.emin)} + ${fmt(d.p * 100, 2)} % × (${fmt(S.emax)} − ${P(S.emin)}) = ${fmt(d.eng)}${S.unit ? ' ' + S.unit : ''}`;
+
+    // pontos de teste
+    const rows = $('ptRows');
+    rows.innerHTML = '';
+    [0, 0.25, 0.5, 0.75, 1].forEach(p => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pt' + (Math.abs(d.p - p) < 1e-9 ? ' on' : '');
+      b.innerHTML = `<span>${p * 100}</span><span>${fmt(p * S.cmax, 1)}</span><span>${fmt(sigAt(p))}</span><span>${fmt(engAt(p))}</span>`;
+      b.addEventListener('click', () => { S.pct = p; S.driver = 'counts'; render(); });
+      rows.appendChild(b);
+    });
+  }
+
+  function mark(box, bad) {
+    box.classList.toggle('bad', bad);
+    box.setAttribute('aria-invalid', bad ? 'true' : 'false');
+  }
+  const isBad = (str, v) => str.trim() !== '' && str.trim() !== '-' && !isFinite(v);
+
+  /* ---------- eventos ---------- */
+  $('seg').addEventListener('click', e => {
+    const b = e.target.closest('button[data-type]');
+    if (!b) return;
+    S.type = b.dataset.type;
+    document.querySelectorAll('#seg button').forEach(x => x.setAttribute('aria-checked', String(x === b)));
+    buildDial();
+    render();
+  });
+
+  $('counts').addEventListener('input', e => {
+    const v = num(e.target.value);
+    mark(e.target.closest('.box'), isBad(e.target.value, v));
+    if (isFinite(v) && S.cmax > 0) { S.pct = v / S.cmax; S.driver = 'counts'; render(); }
+  });
+
+  $('sig').addEventListener('input', e => {
+    const v = num(e.target.value), t = TYPES[S.type];
+    mark(e.target.closest('.box'), isBad(e.target.value, v));
+    if (isFinite(v)) { S.pct = (v - t.min) / (t.max - t.min); S.driver = 'sig'; render(); }
+  });
+
+  $('eng').addEventListener('input', e => {
+    const v = num(e.target.value);
+    mark(e.target.closest('.box'), isBad(e.target.value, v));
+    if (isFinite(v) && S.emax !== S.emin) {
+      S.pct = (v - S.emin) / (S.emax - S.emin);
+      S.engVal = v;
+      S.driver = 'eng';
+      render();
+    }
+  });
+
+  function onRange(key) {
+    return e => {
+      const v = num(e.target.value);
+      mark(e.target.closest('.box'), isBad(e.target.value, v));
+      if (!isFinite(v)) return;
+      S[key] = v;
+      if (S.driver === 'eng' && isFinite(S.engVal) && S.emax !== S.emin) {
+        S.pct = (S.engVal - S.emin) / (S.emax - S.emin);
+      }
+      buildDial();
+      render();
+    };
+  }
+  $('emin').addEventListener('input', onRange('emin'));
+  $('emax').addEventListener('input', onRange('emax'));
+
+  $('cmax').addEventListener('input', e => {
+    const v = num(e.target.value);
+    mark(e.target.closest('.box'), isBad(e.target.value, v) || (isFinite(v) && v <= 0));
+    if (isFinite(v) && v > 0) { S.cmax = v; buildDial(); render(); }
+  });
+
+  $('unit').addEventListener('input', e => { S.unit = e.target.value; buildDial(); render(); });
+
+  document.querySelectorAll('.sign').forEach(b => {
+    b.addEventListener('click', () => {
+      const inp = $(b.dataset.for);
+      const t = inp.value.trim().replace('−', '-');
+      inp.value = t.startsWith('-') ? t.slice(1) : '-' + t;
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+      inp.focus();
+    });
+  });
+
+  /* ---------- barra deslizante ---------- */
+  const dial = $('dial');
+  let dragTimer = 0;
+  function calm() {                 // sem animação enquanto o dedo mexe
+    dial.classList.add('drag');
+    clearTimeout(dragTimer);
+    dragTimer = setTimeout(() => dial.classList.remove('drag'), 250);
+  }
+
+  $('slider').addEventListener('input', e => {
+    const v = Number(e.target.value);
+    if (!isFinite(v) || S.cmax <= 0) return;
+    S.pct = v / S.cmax;
+    S.driver = 'counts';
+    calm();
+    render();
+  });
+
+  const stepSize = () => Math.max(1, Math.round(S.cmax / 1000));
+  function bump(dir) {
+    const cur = Math.round(S.pct * S.cmax);
+    const next = Math.min(S.cmax, Math.max(0, cur + dir * stepSize()));
+    S.pct = next / S.cmax;
+    S.driver = 'counts';
+    calm();
+    render();
+  }
+  function holdButton(btn, dir) {
+    let t1 = 0, t2 = 0;
+    const stop = () => { clearTimeout(t1); clearInterval(t2); };
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      bump(dir);
+      t1 = setTimeout(() => { t2 = setInterval(() => bump(dir), 70); }, 400);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => btn.addEventListener(ev, stop));
+    btn.addEventListener('contextmenu', e => e.preventDefault());
+    btn.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); bump(dir); }
+    });
+  }
+  holdButton($('stepDn'), -1);
+  holdButton($('stepUp'), 1);
+
+  // ao sair do campo, reformata o valor
+  document.querySelectorAll('input').forEach(i => i.addEventListener('blur', () => {
+    document.querySelectorAll('.box.bad').forEach(b => mark(b, false));
+    render();
+  }));
+
+  /* ---------- início ---------- */
+  buildDial();
+  render();
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let bootTimer = setTimeout(() => dial.classList.remove('boot'), reduced ? 100 : 2400);
+  function skipSplash() {
+    document.documentElement.classList.add('skip');
+    clearTimeout(bootTimer);
+    bootTimer = setTimeout(() => dial.classList.remove('boot'), 250);
+  }
+  $('splash').addEventListener('pointerdown', skipSplash);
+  window.addEventListener('keydown', skipSplash, { once: true });
+
+  /* copiar chave Pix */
+  $('copyPix').addEventListener('click', async () => {
+    const btn = $('copyPix'), key = $('pixKey');
+    const txt = key.textContent.trim();
+    let ok = false;
+    try { await navigator.clipboard.writeText(txt); ok = true; }
+    catch (_) {
+      const ta = document.createElement('textarea');
+      ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { ok = document.execCommand('copy'); } catch (_) {}
+      ta.remove();
+    }
+    if (!ok) {
+      const r = document.createRange(); r.selectNodeContents(key);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    }
+    btn.textContent = ok ? 'Chave copiada' : 'Selecione e copie';
+    setTimeout(() => { btn.textContent = 'Copiar chave'; }, 2200);
+  });
+})();
+</script>
+</body>
+</html>
